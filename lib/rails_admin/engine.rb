@@ -15,13 +15,13 @@ module RailsAdmin
     config.action_dispatch.rescue_responses.merge!('RailsAdmin::ActionNotAllowed' => :forbidden)
 
     initializer 'RailsAdmin precompile hook', group: :all do |app|
-      app.config.assets.precompile += [
-        "rails_admin/rails_admin.js",
-        "rails_admin/rails_admin.css",
-        "rails_admin/jquery.colorpicker.js",
-        "rails_admin/jquery.colorpicker.css",
-        ("rails_admin/themes/#{ENV['RAILS_ADMIN_THEME']}/ui.js" if ENV['RAILS_ADMIN_THEME'].present?)
-      ]
+      app.config.assets.precompile += %W(
+        rails_admin/rails_admin.js
+        rails_admin/rails_admin.css
+        rails_admin/jquery.colorpicker.js
+        rails_admin/jquery.colorpicker.css
+        #{"rails_admin/themes/#{ENV['RAILS_ADMIN_THEME']}/ui.js" if ENV['RAILS_ADMIN_THEME'].present?}
+      )
     end
 
     initializer 'RailsAdmin pjax hook' do |app|
