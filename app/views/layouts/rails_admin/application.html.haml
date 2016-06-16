@@ -7,6 +7,7 @@
     = csrf_meta_tag
     = stylesheet_link_tag "rails_admin/rails_admin.css", media: :all
     = javascript_include_tag "rails_admin/rails_admin.js"
+    = javascript_include_tag "rails_admin/themes/#{ENV['RAILS_ADMIN_THEME']}/ui.js"
     -# Initialize JS simple i18n
     :javascript
       RailsAdmin.I18n.init('#{I18n.locale}', JSON.parse("#{j I18n.t("admin.js").to_json}"))

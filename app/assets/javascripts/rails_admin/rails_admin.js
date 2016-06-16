@@ -19,5 +19,3 @@
 //=  require 'rails_admin/ra.widgets'
 //=  require 'rails_admin/ui'
 //=  require 'rails_admin/custom/ui'
-
-@import "rails_admin/themes/<%= theme %>";
