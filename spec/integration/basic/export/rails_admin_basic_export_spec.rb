@@ -7,11 +7,11 @@ describe 'RailsAdmin Export', type: :request do
   before do
     Comment.all.collect(&:destroy) # rspec bug => doesn't get destroyed with transaction
 
-    @players = 4.times.collect { FactoryGirl.create :player }
+    @players = FactoryBot.create_list(:player, 4)
     @player = @players.first
-    @player.team = FactoryGirl.create :team
-    @player.draft = FactoryGirl.create :draft
-    @player.comments = (@comments = 2.times.collect { FactoryGirl.create(:comment) })
+    @player.team = FactoryBot.create :team
+    @player.draft = FactoryBot.create :draft
+    @player.comments = (@comments = Array.new(2) { FactoryBot.create(:comment) })
     @player.save
 
     @abstract_model = RailsAdmin::AbstractModel.new(Player)
@@ -37,6 +37,12 @@ describe 'RailsAdmin Export', type: :request do
               "#{value} exported"
             end
           end
+
+          field :json_field, :json do
+            formatted_value do
+              '{}'
+            end
+          end
         end
       end
 
@@ -46,10 +52,10 @@ describe 'RailsAdmin Export', type: :request do
       click_button 'Export to csv'
       csv = CSV.parse page.driver.response.body.force_encoding('utf-8') # comes through as us-ascii on some platforms
       expect(csv[0]).to match_array ['Id', 'Created at', 'Updated at', 'Deleted at', 'Name', 'Position',
-                                     'Number', 'Retired', 'Injured', 'Born on', 'Notes', 'Suspended', 'Id [Team]', 'Created at [Team]',
+                                     'Number', 'Retired', 'Injured', 'Born on', 'Notes', 'Suspended', 'Formation', 'Json field', 'Id [Team]', 'Created at [Team]',
                                      'Updated at [Team]', 'Name [Team]', 'Logo url [Team]', 'Team Manager [Team]', 'Ballpark [Team]',
                                      'Mascot [Team]', 'Founded [Team]', 'Wins [Team]', 'Losses [Team]', 'Win percentage [Team]',
-                                     'Revenue [Team]', 'Color [Team]', 'Custom field [Team]', 'Id [Draft]', 'Created at [Draft]',
+                                     'Revenue [Team]', 'Color [Team]', 'Custom field [Team]', 'Main Sponsor [Team]', 'Id [Draft]', 'Created at [Draft]',
                                      'Updated at [Draft]', 'Date [Draft]', 'Round [Draft]', 'Pick [Draft]', 'Overall [Draft]',
                                      'College [Draft]', 'Notes [Draft]', 'Id [Comments]', 'Content [Comments]', 'Created at [Comments]',
                                      'Updated at [Comments]']

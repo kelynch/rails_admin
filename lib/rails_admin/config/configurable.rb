@@ -23,6 +23,23 @@ module RailsAdmin
         self.class.register_deprecated_instance_option(option_name, replacement_option_name, scope, &custom_error)
       end
 
+    private
+
+      def with_recurring(option_name, value_proc, default_proc)
+        # Track recursive invocation with an instance variable. This prevents run-away recursion
+        # and allows configurations such as
+        # label { "#{label}".upcase }
+        # This will use the default definition when called recursively.
+        if instance_variable_get("@#{option_name}_recurring")
+          instance_eval(&default_proc)
+        else
+          instance_variable_set("@#{option_name}_recurring", true)
+          instance_eval(&value_proc)
+        end
+      ensure
+        instance_variable_set("@#{option_name}_recurring", false)
+      end
+
       module ClassMethods
         # Register an instance option. Instance option is a configuration
         # option that stores its value within an instance variable and is
@@ -43,7 +60,7 @@ module RailsAdmin
 
           # Define getter/setter by the option name
           scope.send(:define_method, option_name) do |*args, &block|
-            if !args[0].nil? || block # rubocop:disable NonNilCheck
+            if !args[0].nil? || block
               # Invocation with args --> This is the declaration of the option, i.e. setter
               instance_variable_set("@#{option_name}_registered", args[0].nil? ? block : args[0])
             else
@@ -51,17 +68,7 @@ module RailsAdmin
               value = instance_variable_get("@#{option_name}_registered")
               case value
               when Proc
-                # Track recursive invocation with an instance variable. This prevents run-away recursion
-                # and allows configurations such as
-                # label { "#{label}".upcase }
-                # This will use the default definition when called recursively.
-                if instance_variable_get("@#{option_name}_recurring")
-                  value = instance_eval(&default)
-                else
-                  instance_variable_set("@#{option_name}_recurring", true)
-                  value = instance_eval(&value)
-                  instance_variable_set("@#{option_name}_recurring", false)
-                end
+                value = with_recurring(option_name, value, default)
               when nil
                 value = instance_eval(&default)
               end
@@ -75,12 +82,10 @@ module RailsAdmin
             if replacement_option_name
               ActiveSupport::Deprecation.warn("The #{option_name} configuration option is deprecated, please use #{replacement_option_name}.")
               send(replacement_option_name, *args, &block)
+            elsif block_given?
+              yield
             else
-              if block_given?
-                yield
-              else
-                fail("The #{option_name} configuration option is removed without replacement.")
-              end
+              raise("The #{option_name} configuration option is removed without replacement.")
             end
           end
         end

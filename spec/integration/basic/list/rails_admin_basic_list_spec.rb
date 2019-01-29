@@ -30,7 +30,7 @@ describe 'RailsAdmin Basic List', type: :request do
   describe 'GET /admin/player as list' do
     it "shows \"List of Models\", should show filters and should show column headers" do
       RailsAdmin.config.default_items_per_page = 1
-      2.times { FactoryGirl.create :player } # two pages of players
+      2.times { FactoryBot.create :player } # two pages of players
       visit index_path(model_name: 'player')
       is_expected.to have_content('List of Players')
       is_expected.to have_content('Created at')
@@ -55,15 +55,16 @@ describe 'RailsAdmin Basic List', type: :request do
 
   describe 'GET /admin/player' do
     before do
-      @teams = 2.times.collect do
-        FactoryGirl.create(:team)
+      @teams = Array.new(2) do
+        FactoryBot.create(:team)
       end
       @players = [
-        FactoryGirl.create(:player, retired: true, injured: true, team: @teams[0]),
-        FactoryGirl.create(:player, retired: true, injured: false, team: @teams[0]),
-        FactoryGirl.create(:player, retired: false, injured: true, team: @teams[1]),
-        FactoryGirl.create(:player, retired: false, injured: false, team: @teams[1]),
+        FactoryBot.create(:player, retired: true, injured: true, team: @teams[0]),
+        FactoryBot.create(:player, retired: true, injured: false, team: @teams[0]),
+        FactoryBot.create(:player, retired: false, injured: true, team: @teams[1]),
+        FactoryBot.create(:player, retired: false, injured: false, team: @teams[1]),
       ]
+      @comment = FactoryBot.create(:comment, commentable: @players[2])
     end
 
     it 'allows to query on any attribute' do
@@ -270,6 +271,23 @@ describe 'RailsAdmin Basic List', type: :request do
       is_expected.to have_no_content(@players[3].name)
     end
 
+    it 'allows to search a has_many attribute over the target table' do
+      RailsAdmin.config Player do
+        list do
+          field PK_COLUMN
+          field :name
+          field :comments do
+            searchable :content
+          end
+        end
+      end
+      visit index_path(model_name: 'player', f: {comments: {'1' => {v: @comment.content}}})
+      is_expected.to have_no_content(@players[0].name)
+      is_expected.to have_no_content(@players[1].name)
+      is_expected.to have_content(@players[2].name)
+      is_expected.to have_no_content(@players[3].name)
+    end
+
     it 'displays base filters when no filters are present in the params' do
       RailsAdmin.config Player do
         list { filters([:name, :team]) }
@@ -300,7 +318,7 @@ describe 'RailsAdmin Basic List', type: :request do
 
   describe 'GET /admin/player with 2 objects' do
     before do
-      @players = 2.times.collect { FactoryGirl.create :player }
+      @players = FactoryBot.create_list(:player, 2)
       visit index_path(model_name: 'player')
     end
 
@@ -311,7 +329,7 @@ describe 'RailsAdmin Basic List', type: :request do
 
   describe 'GET /admin/player with 2 objects' do
     before do
-      @players = 2.times.collect { FactoryGirl.create :player }
+      @players = FactoryBot.create_list(:player, 2)
       visit index_path(model_name: 'player')
     end
 
@@ -320,45 +338,94 @@ describe 'RailsAdmin Basic List', type: :request do
     end
   end
 
-  describe 'GET /admin/player with 3 pages, page 2' do
+  context 'List with 3 pages' do
+    def visit_page(page)
+      visit index_path(model_name: 'player', page: page)
+    end
+
     before do
       RailsAdmin.config.default_items_per_page = 1
-      items_per_page = RailsAdmin.config.default_items_per_page
-      (items_per_page * 3).times { FactoryGirl.create(:player) }
-      visit index_path(model_name: 'player', page: 2)
+      (RailsAdmin.config.default_items_per_page * 3).times { FactoryBot.create(:player) }
     end
 
-    it 'paginates correctly' do
-      expect(find('ul.pagination li:first')).to have_content('« Prev')
-      expect(find('ul.pagination li:last')).to have_content('Next »')
-      expect(find('ul.pagination li.active')).to have_content('2')
-    end
-  end
+    describe 'with limited_pagination=false' do
+      it 'page 1' do
+        visit_page(1)
 
-  describe 'list with 3 pages, page 3' do
-    before do
-      items_per_page = RailsAdmin.config.default_items_per_page
-      @players = (items_per_page * 3).times.collect { FactoryGirl.create(:player) }
-      visit index_path(model_name: 'player', page: 3)
+        within('ul.pagination') do
+          expect(find('li:first')).to have_content('« Prev')
+          expect(find('li:last')).to have_content('Next »')
+          expect(find('li.active')).to have_content('1')
+        end
+      end
+
+      it 'page 2' do
+        visit_page(2)
+
+        within('ul.pagination') do
+          expect(find('li:first')).to have_content('« Prev')
+          expect(find('li:last')).to have_content('Next »')
+          expect(find('li.active')).to have_content('2')
+        end
+      end
+
+      it 'page 3' do
+        visit_page(3)
+
+        within('ul.pagination') do
+          expect(find('li:first')).to have_content('« Prev')
+          expect(find('li:last')).to have_content('Next »')
+          expect(find('li.active')).to have_content('3')
+        end
+      end
     end
 
-    it 'paginates correctly and contain the right item' do
-      expect(find('ul.pagination li:first')).to have_content('« Prev')
-      expect(find('ul.pagination li:last')).to have_content('Next »')
-      expect(find('ul.pagination li.active')).to have_content('3')
+    context 'with limited_pagination=true' do
+      before do
+        allow(RailsAdmin::AbstractModel.new(Player).config.list).
+          to receive(:limited_pagination).
+          and_return(true)
+      end
+
+      it 'page 1' do
+        visit_page(1)
+
+        within('ul.pagination') do
+          expect(find('li:first')).not_to have_content('« Prev')
+          expect(find('li:last')).to have_content('Next »')
+        end
+      end
+
+      it 'page 2' do
+        visit_page(2)
+
+        within('ul.pagination') do
+          expect(find('li:first')).to have_content('« Prev')
+          expect(find('li:last')).to have_content('Next »')
+        end
+      end
+
+      it 'page 3' do
+        visit_page(3)
+
+        within('ul.pagination') do
+          expect(find('li:first')).to have_content('« Prev')
+          expect(find('li:last')).to have_content('Next »')
+        end
+      end
     end
   end
 
   describe 'GET /admin/player show all' do
     it 'responds successfully with a single model' do
-      FactoryGirl.create :player
+      FactoryBot.create :player
       visit index_path(model_name: 'player', all: true)
       expect(find('div.total-count')).to have_content('1 player')
       expect(find('div.total-count')).not_to have_content('1 players')
     end
 
     it 'responds successfully with multiple models' do
-      2.times.collect { FactoryGirl.create :player }
+      FactoryBot.create_list(:player, 2)
       visit index_path(model_name: 'player', all: true)
       expect(find('div.total-count')).to have_content('2 players')
     end
@@ -366,8 +433,8 @@ describe 'RailsAdmin Basic List', type: :request do
 
   describe 'GET /admin/player show with pagination disabled by :associated_collection' do
     it 'responds successfully' do
-      @team = FactoryGirl.create :team
-      2.times.collect { FactoryGirl.create :player, team: @team }
+      @team = FactoryBot.create :team
+      Array.new(2) { FactoryBot.create :player, team: @team }
       visit index_path(model_name: 'player', associated_collection: 'players', compact: true, current_action: 'update', source_abstract_model: 'team', source_object_id: @team.id)
       expect(find('div.total-count')).to have_content('2 players')
     end
@@ -375,7 +442,7 @@ describe 'RailsAdmin Basic List', type: :request do
 
   describe 'list as compact json' do
     it 'has_content an array with 2 elements and contain an array of elements with keys id and label' do
-      2.times.collect { FactoryGirl.create :player }
+      FactoryBot.create_list(:player, 2)
       get index_path(model_name: 'player', compact: true, format: :json)
       expect(ActiveSupport::JSON.decode(response.body).length).to eq(2)
       ActiveSupport::JSON.decode(response.body).each do |object|
@@ -386,7 +453,7 @@ describe 'RailsAdmin Basic List', type: :request do
   end
 
   describe 'search operator' do
-    let(:player) { FactoryGirl.create :player }
+    let(:player) { FactoryBot.create :player }
 
     before do
       expect(Player.count).to eq(0)
@@ -441,15 +508,15 @@ describe 'RailsAdmin Basic List', type: :request do
 
   describe 'list for objects with overridden to_param' do
     before do
-      @ball = FactoryGirl.create :ball
+      @ball = FactoryBot.create :ball
 
       visit index_path(model_name: 'ball')
     end
 
     it 'shows the show, edit and delete links with valid url' do
-      is_expected.to have_selector("td a[href='/admin/ball/#{@ball.id}']")
-      is_expected.to have_selector("td a[href='/admin/ball/#{@ball.id}/edit']")
-      is_expected.to have_selector("td a[href='/admin/ball/#{@ball.id}/delete']")
+      is_expected.to have_selector("td a[href$='/admin/ball/#{@ball.id}']")
+      is_expected.to have_selector("td a[href$='/admin/ball/#{@ball.id}/edit']")
+      is_expected.to have_selector("td a[href$='/admin/ball/#{@ball.id}/delete']")
     end
   end
 
@@ -463,10 +530,10 @@ describe 'RailsAdmin Basic List', type: :request do
         end
       end
       @teams = [
-        FactoryGirl.create(:team, color: 'red'),
-        FactoryGirl.create(:team, color: 'red'),
-        FactoryGirl.create(:team, color: 'white'),
-        FactoryGirl.create(:team, color: 'black'),
+        FactoryBot.create(:team, color: 'red'),
+        FactoryBot.create(:team, color: 'red'),
+        FactoryBot.create(:team, color: 'white'),
+        FactoryBot.create(:team, color: 'black'),
       ]
     end
 
@@ -544,6 +611,29 @@ describe 'RailsAdmin Basic List', type: :request do
           expect(find('#scope_selector li.active')).to have_content('any')
         end
       end
+    end
+  end
+
+  describe 'Row CSS class' do
+    before do
+      RailsAdmin.config do |config|
+        config.model Team do
+          list do
+            row_css_class { 'my_class' }
+          end
+        end
+      end
+      @teams = [
+        FactoryBot.create(:team, color: 'red'),
+        FactoryBot.create(:team, color: 'red'),
+        FactoryBot.create(:team, color: 'white'),
+        FactoryBot.create(:team, color: 'black'),
+      ]
+    end
+
+    it 'appends the CSS class to the model row class' do
+      visit index_path(model_name: 'team')
+      expect(page).to have_css('tr.team_row.my_class')
     end
   end
 end

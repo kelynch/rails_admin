@@ -5,7 +5,7 @@ describe 'RailsAdmin History', type: :request, active_record: true do
     before :each do
       RailsAdmin::History.delete_all
       @model = RailsAdmin::AbstractModel.new('Player')
-      player = FactoryGirl.create :player
+      player = FactoryBot.create :player
       30.times do |i|
         player.number = i
         RailsAdmin::History.create_history_item "change #{i}", player, @model, nil
@@ -79,7 +79,7 @@ describe 'RailsAdmin History', type: :request, active_record: true do
         end
 
         it 'renders a XHR request successfully' do
-          xhr :get, history_index_path(@model, page: 2)
+          get history_index_path(@model, page: 2), xhr: true
         end
       end
     end

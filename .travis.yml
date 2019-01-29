@@ -1,6 +1,9 @@
 language: ruby
 
-before_install: gem install bundler
+before_install:
+  # https://github.com/danmayer/coverband/issues/162#issuecomment-452173268
+  - rm /home/travis/.rvm/gems/*/specifications/bundler-2.*.gemspec || true
+  - gem install bundler -v '< 2'
 
 before_script:
   - cd spec/dummy_app
@@ -19,54 +22,86 @@ env:
     - JRUBY_OPTS="$JRUBY_OPTS --debug"
 
 rvm:
-  - 2.1.9
-  - 2.2.5
-  - 2.3.1
-  - rbx-2
-  - ruby-head
+  - 2.3.8
 
 gemfile:
+  - gemfiles/rails_4.0.gemfile
+  - gemfiles/rails_4.1.gemfile
   - gemfiles/rails_4.2.gemfile
+  - gemfiles/rails_5.0.gemfile
+  - gemfiles/rails_5.1.gemfile
+  - gemfiles/rails_5.2.gemfile
 
 services:
   - mongodb
+
+dist: trusty
 
 sudo: false
 
 matrix:
   include:
-    - rvm: 2.3.0
-      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
-      gemfile: gemfiles/rails_4.0.gemfile
-    - rvm: 2.3.0
+    - rvm: 2.1.10
       env: CI_ORM=mongoid
-      gemfile: gemfiles/rails_4.0.gemfile
-    - rvm: 2.3.0
+      gemfile: gemfiles/rails_4.2.gemfile
+    - rvm: 2.1.10
       env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
-      gemfile: gemfiles/rails_4.1.gemfile
-    - rvm: 2.3.0
+      gemfile: gemfiles/rails_4.2.gemfile
+    - rvm: 2.2.10
       env: CI_ORM=mongoid
-      gemfile: gemfiles/rails_4.1.gemfile
-    - rvm: 2.3.0
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.2.10
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.3.8
       env: CI_ORM=active_record CI_DB_ADAPTER=mysql2
-      gemfile: gemfiles/rails_4.2.gemfile
-    - rvm: 2.3.0
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.3.8
       env: CI_ORM=active_record CI_DB_ADAPTER=postgresql CI_DB_USERNAME=postgres
-      gemfile: gemfiles/rails_4.2.gemfile
-    - rvm: 2.3.0
-      env: CI_ORM=active_record
-      gemfile: gemfiles/rails_5.0.gemfile
-    - rvm: jruby-head
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.3.8
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/cancan.gemfile
+    - rvm: 2.4.5
       env: CI_ORM=mongoid
-      gemfile: gemfiles/rails_4.2.gemfile
-    - rvm: jruby-head
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.4.5
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.5.3
+      env: CI_ORM=mongoid
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.5.3
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.6.0
+      env: CI_ORM=mongoid
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: 2.6.0
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: ruby-head
+      env: CI_ORM=mongoid
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: ruby-head
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: rbx-2.2.7
       env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
       gemfile: gemfiles/rails_4.2.gemfile
-  allow_failures:
+    - rvm: jruby-9.2.5.0
+      env: CI_ORM=mongoid
+      gemfile: gemfiles/rails_5.2.gemfile
+    - rvm: jruby-9.2.5.0
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/rails_5.2.gemfile
     - rvm: jruby-head
-    - rvm: rbx-2
+      env: CI_ORM=active_record CI_DB_ADAPTER=sqlite3
+      gemfile: gemfiles/rails_5.2.gemfile
+  allow_failures:
     - rvm: ruby-head
-    - gemfile: gemfiles/rails_5.0.gemfile
+    - rvm: rbx-2.2.7
+    - rvm: jruby-head
   fast_finish: true
 
 notifications:

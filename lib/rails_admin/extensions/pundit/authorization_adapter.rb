@@ -5,6 +5,13 @@ module RailsAdmin
       # You can create another adapter for different authorization behavior, just be certain it
       # responds to each of the public methods here.
       class AuthorizationAdapter
+        # This method is called first time only and used for setup
+        def self.setup
+          RailsAdmin::ApplicationController.class_eval do
+            include ::Pundit
+          end unless RailsAdmin::ApplicationController.ancestors.include? 'Pundit'
+        end
+
         # See the +authorize_with+ config method for where the initialization happens.
         def initialize(controller)
           @controller = controller
@@ -17,7 +24,10 @@ module RailsAdmin
         # instance if it is available.
         def authorize(action, abstract_model = nil, model_object = nil)
           record = model_object || abstract_model && abstract_model.model
-          fail ::Pundit::NotAuthorizedError.new("not allowed to #{action} this #{record}") unless policy(record).send(action_for_pundit(action)) if action
+          if action && !policy(record).send(action_for_pundit(action))
+            raise ::Pundit::NotAuthorizedError.new("not allowed to #{action} this #{record}")
+          end
+          @controller.instance_variable_set(:@_pundit_policy_authorized, true)
         end
 
         # This method is called primarily from the view to determine whether the given user
@@ -33,7 +43,7 @@ module RailsAdmin
         # and bulk_delete/destroy actions and should return a scope which limits the records
         # to those which the user can perform the given action on.
         def query(_action, abstract_model)
-          @controller.policy_scope(abstract_model.model.all)
+          @controller.send(:policy_scope, abstract_model.model.all)
         rescue ::Pundit::NotDefinedError
           abstract_model.model.all
         end
@@ -49,7 +59,7 @@ module RailsAdmin
       private
 
         def policy(record)
-          @controller.policy(record)
+          @controller.send(:policy, record)
         rescue ::Pundit::NotDefinedError
           ::ApplicationPolicy.new(@controller.send(:pundit_user), record)
         end

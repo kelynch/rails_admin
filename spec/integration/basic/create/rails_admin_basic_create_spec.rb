@@ -60,7 +60,7 @@ describe 'RailsAdmin Basic Create', type: :request do
 
   describe 'create with has-one association' do
     before do
-      @draft = FactoryGirl.create :draft
+      @draft = FactoryBot.create :draft
 
       post new_path(model_name: 'player', player: {name: 'Jackie Robinson', number: 42, position: 'Second baseman', draft_id: @draft.id})
 
@@ -75,7 +75,7 @@ describe 'RailsAdmin Basic Create', type: :request do
 
   describe 'create with has-many association' do
     before do
-      @divisions = 3.times.collect { Division.create!(name: "div #{Time.now.to_f}", league: League.create!(name: "league #{Time.now.to_f}")) }
+      @divisions = Array.new(3) { Division.create!(name: "div #{Time.now.to_f}", league: League.create!(name: "league #{Time.now.to_f}")) }
       post new_path(model_name: 'league', league: {name: 'National League', division_ids: [@divisions[0].id]})
       @league = RailsAdmin::AbstractModel.new('League').all.to_a.last
     end
@@ -90,7 +90,7 @@ describe 'RailsAdmin Basic Create', type: :request do
 
   describe 'create with has-and-belongs-to-many association' do
     before do
-      @teams = 3.times.collect { FactoryGirl.create :team }
+      @teams = FactoryBot.create_list(:team, 3)
       post new_path(model_name: 'fan', fan: {name: 'John Doe', team_ids: [@teams[0].id]})
       @fan = RailsAdmin::AbstractModel.new('Fan').first
     end
@@ -105,8 +105,8 @@ describe 'RailsAdmin Basic Create', type: :request do
 
   describe 'create with uniqueness constraint violated', given: 'a player exists' do
     before do
-      @team = FactoryGirl.create :team
-      @player = FactoryGirl.create :player, team: @team
+      @team = FactoryBot.create :team
+      @player = FactoryBot.create :player, team: @team
 
       post new_path(model_name: 'player', player: {name: @player.name, number: @player.number.to_s, position: @player.position, team_id: @team.id})
     end

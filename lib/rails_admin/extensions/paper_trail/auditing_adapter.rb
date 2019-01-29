@@ -36,11 +36,30 @@ module RailsAdmin
           item: :item_id,
           created_at: :created_at,
           message: :event,
-        }
+        }.freeze
+        E_VERSION_MODEL_NOT_SET = <<-EOS.strip_heredoc.freeze
+          Please set up PaperTrail's version model explicitly.
+
+              config.audit_with :paper_trail, 'User', 'PaperTrail::Version'
+
+          If you have configured a model to use a custom version class
+          (https://github.com/paper-trail-gem/paper_trail#6a-custom-version-classes)
+          that configuration will take precedence over what you specify in
+          `audit_with`.
+        EOS
+
+        def self.setup
+          raise('PaperTrail not found') unless defined?(::PaperTrail)
+          RailsAdmin::ApplicationController.class_eval do
+            def user_for_paper_trail
+              _current_user.try(:id) || _current_user
+            end
+          end
+        end
 
         def initialize(controller, user_class = 'User', version_class = '::Version')
-          fail('PaperTrail not found') unless defined?(PaperTrail)
           @controller = controller
+          @controller.send(:set_paper_trail_whodunnit) if @controller
           begin
             @user_class = user_class.to_s.constantize
           rescue NameError
@@ -50,12 +69,14 @@ module RailsAdmin
           begin
             @version_class = version_class.to_s.constantize
           rescue NameError
-            raise "Please set up Papertrail's version model explicitly. Ex: config.audit_with :paper_trail, 'User', 'PaperTrail::Version'"
+            raise E_VERSION_MODEL_NOT_SET
           end
         end
 
-        def latest
-          @version_class.order('id DESC').limit(100).collect { |version| VersionProxy.new(version, @user_class) }
+        def latest(count = 100)
+          @version_class.
+            order(id: :desc).includes(:item).limit(count).
+            collect { |version| VersionProxy.new(version, @user_class) }
         end
 
         def delete_object(_object, _model, _user)
@@ -80,6 +101,7 @@ module RailsAdmin
 
       protected
 
+        # - model - a RailsAdmin::AbstractModel
         def listing_for_model_or_object(model, object, query, sort, sort_reverse, all, page, per_page)
           if sort.present?
             sort = COLUMN_MAPPING[sort.to_sym]
@@ -88,11 +110,10 @@ module RailsAdmin
             sort_reverse = 'true'
           end
 
-          model_name = model.model.name
-
+          ar_model = model.model
           current_page = page.presence || '1'
 
-          versions = version_class_for(model_name).where item_type: model_name
+          versions = version_class_for(ar_model).where item_type: ar_model.name
           versions = versions.where item_id: object.id if object
           versions = versions.where('event LIKE ?', "%#{query}%") if query.present?
           versions = versions.order(sort_reverse == 'true' ? "#{sort} DESC" : sort)
@@ -105,12 +126,14 @@ module RailsAdmin
           paginated_proxies
         end
 
-        def version_class_for(model_name)
-          klass = model_name.constantize.
-                  try(:version_class_name).
-                  try(:constantize)
-
-          klass || @version_class
+        # PT can be configured to use [custom version
+        # classes](https://github.com/paper-trail-gem/paper_trail#6a-custom-version-classes)
+        #
+        # ```ruby
+        # has_paper_trail class_name: 'MyVersion'
+        # ```
+        def version_class_for(model)
+          model.paper_trail_options[:class_name].try(:constantize) || @version_class
         end
       end
     end
