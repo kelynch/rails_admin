@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'appraisal', '>= 2.0'
-gem 'rails'
+gem 'rails', '~>5.1.0'
 gem 'haml'
 gem 'devise'
 
